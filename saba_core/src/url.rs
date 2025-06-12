@@ -1,5 +1,6 @@
 use alloc::string::String;
 use alloc::string::ToString;
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Url {
@@ -17,20 +18,20 @@ impl Url {
             host: "".to_string(),
             port: "".to_string(),
             path: "".to_string(),
-            searchpart: "".string(),
+            searchpart: "".to_string(),
         }
     }
 
     pub fn host(&self) -> String {
-        self.host.clone();
+        self.host.clone()
     }
 
     pub fn port(&self) -> String {
-        self.port.clone();
+        self.port.clone()
     }
 
     pub fn path(&self) -> String {
-        self.path.clone();
+        self.path.clone()
     }
 
     pub fn searchpart(&self) -> String {
@@ -58,14 +59,14 @@ impl Url {
         }
     }
 
-    fn extract_poth(&self) -> String {
+    fn extract_path(&self) -> String {
         let url_parts: Vec<&str> = self
             .url
             .trim_start_matches("http://")
             .splitn(2, "/")
             .collect();
 
-        if url_pats.len() < 2 {
+        if url_parts.len() < 2 {
             return "".to_string();
         }
 
@@ -106,7 +107,6 @@ impl Url {
         }
     }
 
-
     pub fn parse(&mut self) -> Result<Self, String> {
         if !self.is_http() {
             return Err("Only HTTP scheme is supported.".to_string());
@@ -119,5 +119,88 @@ impl Url {
 
         Ok(self.clone())
     }
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_url_host() {
+        let url = "http://example.com".to_string();
+        let expected = Ok(Url {
+            url: url.clone(),
+            host: "example.com".to_string(),
+            port: "80".to_string(),
+            path: "".to_string(),
+            searchpart: "".to_string(),
+        });
+        assert_eq!(expected, Url::new(url).parse());
+    }
+
+    #[test]
+    fn test_url_host_port() {
+        let url = "http://example.com:8888".to_string();
+        let expected = Ok(Url {
+            url: url.clone(),
+            host: "example.com".to_string(),
+            port: "8888".to_string(),
+            path: "".to_string(),
+            searchpart: "".to_string(),
+        });
+        assert_eq!(expected, Url::new(url).parse());
+    }
+
+    #[test]
+    fn test_url_host_port_path() {
+        let url = "http://example.com:8888/index.html".to_string();
+        let expected = Ok(Url {
+            url: url.clone(),
+            host: "example.com".to_string(),
+            port: "8888".to_string(),
+            path: "index.html".to_string(),
+            searchpart: "".to_string(),
+        });
+        assert_eq!(expected, Url::new(url).parse());
+    }
+
+    #[test]
+    fn test_url_host_path() {
+        let url = "http://example.com/index.html".to_string();
+        let expected = Ok(Url {
+            url: url.clone(),
+            host: "example.com".to_string(),
+            port: "80".to_string(),
+            path: "index.html".to_string(),
+            searchpart: "".to_string(),
+        });
+        assert_eq!(expected, Url::new(url).parse());
+    }
+
+    #[test]
+    fn test_url_host_port_path_searchpart() {
+        let url = "http://example.com:8888/index.html?a=123&b=456".to_string();
+        let expected = Ok(Url {
+            url: url.clone(),
+            host: "example.com".to_string(),
+            port: "8888".to_string(),
+            path: "index.html".to_string(),
+            searchpart: "a=123&b=456".to_string(),
+        });
+        assert_eq!(expected, Url::new(url).parse());
+    }
+
+    #[test]
+    fn test_no_scheme() {
+        let url = "example.com".to_string();
+        let expected = Err("Only HTTP scheme is supported.".to_string());
+        assert_eq!(expected, Url::new(url).parse());
+    }
+
+    #[test]
+    fn test_unsupported_scheme() {
+        let url = "https://example.com:8888/index.html".to_string();
+        let expected = Err("Only HTTP scheme is supported.".to_string());
+        assert_eq!(expected, Url::new(url).parse());
+    }
 }
