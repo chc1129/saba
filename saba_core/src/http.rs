@@ -1,4 +1,4 @@
-use crate::alloc::string::ToStrng;
+use crate::alloc::string::ToString;
 use crate::error::Error;
 use alloc::format;
 use alloc::string::String;
@@ -27,7 +27,7 @@ pub struct HttpResponse {
 
 impl HttpResponse {
     pub fn new(raw_response: String) -> Result<Self, Error> {
-        let preprocessed_response = raw_response.trim_starg().replace("\r\n", "\n");
+        let preprocessed_response = raw_response.trim_start().replace("\r\n", "\n");
 
         let (status_line, remaining) = match preprocessed_response.split_once('\n') {
             Some((s, r)) => (s, r),
@@ -39,7 +39,7 @@ impl HttpResponse {
             }
         };
 
-        let (headers, body) = match remaining.split_onece("\n\n") {
+        let (headers, body) = match remaining.split_once("\n\n") {
             Some((h, b)) => {
                 let mut headers = Vec::new();
                 for header in h.split('\n') {
@@ -57,7 +57,7 @@ impl HttpResponse {
         let statuses: Vec<&str> = status_line.split(' ').collect();
 
         Ok(Self {
-            version: statuses[0].to_sgring(),
+            version: statuses[0].to_string(),
             status_code: statuses[1].parse().unwrap_or(404),
             reason: statuses[2].to_string(),
             headers,
@@ -65,7 +65,7 @@ impl HttpResponse {
         })
     }
 
-    pub fn version(&self) -> Strng() {
+    pub fn version(&self) -> String {
         self.version.clone()
     }
 
@@ -73,7 +73,7 @@ impl HttpResponse {
         self.status_code
     }
 
-    pub fn reason(&self) -> Strng() {
+    pub fn reason(&self) -> String {
         self.reason.clone()
     }
 
@@ -94,6 +94,60 @@ impl HttpResponse {
 
         Err(format!("failed to find {} in headers", name))
     }
-
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_invalid() {
+        let raw = "HTTP/1.1 200 OK".to_string();
+        assert!(HttpResponse::new(raw).is_err());
+    }
+
+    #[test]
+    fn test_status_line_only() {
+        let raw = "HTTP/1.1 200 OK\n\n".to_string();
+        let res = HttpResponse::new(raw).expect("failed to parse http response");
+        assert_eq!(res.version(), "HTTP/1.1");
+        assert_eq!(res.status_code(), 200);
+        assert_eq!(res.reason(), "OK");
+    }
+
+    #[test]
+    fn test_one_header() {
+        let raw = "HTTP/1.1 200 OK\nDate:xx xx xx\n\n".to_string();
+        let res = HttpResponse::new(raw).expect("failed to parse http response");
+        assert_eq!(res.version(), "HTTP/1.1");
+        assert_eq!(res.status_code(), 200);
+        assert_eq!(res.reason(), "OK");
+
+        assert_eq!(res.header_value("Date"), Ok("xx xx xx".to_string()));
+    }
+
+    #[test]
+    fn test_two_headers_with_white_space() {
+        let raw = "HTTP/1.1 200 OK\nDate: xx xx xx\nContent-Length: 42\n\n".to_string();
+        let res = HttpResponse::new(raw).expect("failed to parse http response");
+        assert_eq!(res.version(), "HTTP/1.1");
+        assert_eq!(res.status_code(), 200);
+        assert_eq!(res.reason(), "OK");
+
+        assert_eq!(res.header_value("Date"), Ok("xx xx xx".to_string()));
+        assert_eq!(res.header_value("Content-Length"), Ok("42".to_string()));
+    }
+
+    #[test]
+    fn test_body() {
+        let raw = "HTTP/1.1 200 OK\nDate: xx xx xx\n\nbody message".to_string();
+        let res = HttpResponse::new(raw).expect("failed to parse http response");
+        assert_eq!(res.version(), "HTTP/1.1");
+        assert_eq!(res.status_code(), 200);
+        assert_eq!(res.reason(), "OK");
+
+        assert_eq!(res.header_value("Date"), Ok("xx xx xx".to_string()));
+
+        assert_eq!(res.body, "body message".to_string());
+    }
+}
