@@ -115,11 +115,11 @@ impl HtmlTokenizer {
         if let Some(t) = self.latest_token.as_mut() {
             match t {
                 HtmlToken::StartTag {
-                    ref mut tag,
+                    tag,
                     self_closing: _,
                     attributes: _,
                 }
-                | HtmlToken::EndTag { ref mut tag } => tag.push(c),
+                | HtmlToken::EndTag { tag } => tag.push(c),
                 _ => panic!("`latest_token` should be either StartTag or EndTag"),
             }
         }
@@ -143,7 +143,7 @@ impl HtmlTokenizer {
                 HtmlToken::StartTag {
                     tag: _,
                     self_closing: _,
-                    ref mut attributes,
+                    attributes,
                 } => {
                     attributes.push(Attribute::new());
                 }
@@ -160,7 +160,7 @@ impl HtmlTokenizer {
                 HtmlToken::StartTag {
                     tag: _,
                     self_closing: _,
-                    ref mut attributes,
+                    attributes,
                 } => {
                     let len = attributes.len();
                     assert!(len > 0);
@@ -179,7 +179,7 @@ impl HtmlTokenizer {
             match t {
                 HtmlToken::StartTag {
                     tag: _,
-                    ref mut self_closing,
+                    self_closing,
                     attributes: _,
                 } => *self_closing = true,
                 _ => panic!("`latest_token` should be either StartTag"),
