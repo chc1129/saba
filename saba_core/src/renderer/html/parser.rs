@@ -1,13 +1,16 @@
 use crate::renderer::dom::node::Element;
 use crate::renderer::dom::node::ElementKind;
 use crate::renderer::dom::node::Node;
+use crate::renderer::dom::node::NodeKind;
 use crate::renderer::dom::node::Window;
 use crate::renderer::html::attribute::Attribute;
 use crate::renderer::html::token::HtmlToken;
 use crate::renderer::html::token::HtmlTokenizer;
 use alloc::rc::Rc;
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
+use core::str::FromStr;
 
 /// https://html.spec.whatwg.org/multipage/parsing.html#the-insertion-mode
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -94,11 +97,47 @@ impl HtmlParser {
         Node::new(NodeKind::Text(s))
     }
 
-    fn create_element(&self, tag: &str, attributes: Vec<Attriburte> -> Node {
-        Node::new(NodeKind::Eelment(Eelment::new(tag, attributes)))
+    fn insert_char(&mut self, c: char) {
+        let current = match self.stack_of_open_elements.last() {
+            Some(n) => n.clone(),
+            None => return,
+        };
+
+        // 現在参照しているノードがテキストノードの場合、そのノードに文字を追加する。
+        if let NodeKind::Text(ref mut s) = current.borrow_mut().kind {
+            s.push(c);
+            return;
+        }
+
+        // 改行文字や空白文字のときはテキストノードを追加しない。
+        if c == '\n' || c == ' ' {
+            return;
+        }
+
+        let node = Rc::new(RefCell::new(self.create_char(c)));
+
+        if current.borrow().first_child().is_some() {
+            current
+                .borrow()
+                .first_child()
+                .unwrap()
+                .borrow_mut()
+                .set_next_sibling(Some(node.clone()));
+        } else {
+            current.borrow_mut().set_first_child(Some(node.clone()));
+        }
+
+        current.borrow_mut().set_last_child(Rc::downgrade(&node));
+        node.borrow_mut().set_parent(Rc::downgrade(&current));
+
+        self.stack_of_open_elements.push(node);
     }
 
-    fn insert_element(&mut self, tag: &str, attributes: Vec<Attributes>) {
+    fn create_element(&self, tag: &str, attributes: Vec<Attribute>) -> Node {
+        Node::new(NodeKind::Element(Element::new(tag, attributes)))
+    }
+
+    fn insert_element(&mut self, tag: &str, attributes: Vec<Attribute>) {
         let window = self.window.borrow();
         let current = match self.stack_of_open_elements.last() {
             Some(n) => n.clone(),
@@ -112,7 +151,7 @@ impl HtmlParser {
             loop {
                 last_sibling = match last_sibling {
                     Some(ref node) => {
-                        if node.borrow().next_sibling().is_sosme() {
+                        if node.borrow().next_sibling().is_some() {
                             node.borrow().next_sibling()
                         } else {
                             break;
@@ -162,7 +201,7 @@ impl HtmlParser {
                         Some(HtmlToken::Char(c)) => {
                             if c == ' ' || c == '\n' {
                                 token = self.t.next();
-                                contiune;
+                                continue;
                             }
                         }
                         Some(HtmlToken::StartTag {
@@ -177,7 +216,13 @@ impl HtmlParser {
                                 continue;
                             }
                         }
-                        Some(HtmlToken::Eof) | Node => {
+                        Some(HtmlToken::EndTag { ref tag }) => {
+                            if tag != "head" || tag != "body" || tag != "html" || tag != "br" {
+                                token = self.t.next();
+                                continue;
+                            }
+                        }
+                        Some(HtmlToken::Eof) | None => {
                             return self.window.clone();
                         }
                     }
@@ -301,6 +346,7 @@ impl HtmlParser {
                         Some(HtmlToken::StartTag {
                             ref tag,
                             self_closing: _,
+                            ref attributes,
                         }) => match tag.as_str() {
                             "p" => {
                                 self.insert_element(tag, attributes.to_vec());
@@ -330,13 +376,13 @@ impl HtmlParser {
                                         // パースの失敗。トークンを無視する
                                         continue;
                                     }
-                                    self.pop_until(EelementKind::Body);
+                                    self.pop_until(ElementKind::Body);
                                     continue;
                                 }
                                 "html" => {
                                     if self.pop_current_node(ElementKind::Body) {
                                         self.mode = InsertionMode::AfterBody;
-                                        assert!(self.pop_current_mode(ElementKind::Html));
+                                        assert!(self.pop_current_node(ElementKind::Html));
                                     } else {
                                         token = self.t.next();
                                     }
@@ -367,14 +413,14 @@ impl HtmlParser {
                                     token = self.t.next();
                                 }
                             }
-                            Some(HtmlToken::Eof) | None => {
-                                return self.window.clone();
-                            }
-                            Some(HtmlToken::Char(c)) => {
-                                self.insert_char(c);
-                                token = self.t.next();
-                                continue;
-                            }
+                        }
+                        Some(HtmlToken::Eof) | None => {
+                            return self.window.clone();
+                        }
+                        Some(HtmlToken::Char(c)) => {
+                            self.insert_char(c);
+                            token = self.t.next();
+                            continue;
                         }
                     }
                 }
@@ -407,7 +453,7 @@ impl HtmlParser {
 
                     self.mode = self.original_insertion_mode;
                 }
-                InsertionMode::AfterBODY => {
+                InsertionMode::AfterBody => {
                     match token {
                         Some(HtmlToken::Char(_c)) => {
                             token = self.t.next();
@@ -446,7 +492,7 @@ impl HtmlParser {
             }
         }
 
-        self.widnow.clone()
+        self.window.clone()
     }
 }
 
@@ -454,6 +500,7 @@ impl HtmlParser {
 mod tests {
     use super::*;
     use crate::alloc::string::ToString;
+    use alloc::vec;
 
     #[test]
     fn test_empty() {
