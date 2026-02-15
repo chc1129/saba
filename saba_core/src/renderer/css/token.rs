@@ -36,6 +36,26 @@ pub struct CssTokenizer {
 }
 
 impl Iterator for CssTokenizer {
+    /// https://www.w3.org/TR/css-syntax-3/#consume-a-string-token
+    fn consume_string_token(&mut self) -> String {
+        let mut s = String::new();
+
+        loop {
+            if self.pos >= self.input.len() {
+                return s;
+            }
+
+            self.pos += 1;
+            let c = self.input[self.pos];
+            match c {
+                '"' | '\'' => break,
+                _ => s.push(c),
+            }
+        }
+
+        s
+    }
+
     type Item = CssToken;
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-token
