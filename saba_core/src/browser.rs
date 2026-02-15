@@ -6,7 +6,7 @@ use core::cell::RefCell;
 #[derive(Debug, Clone)]
 pub struct Browser {
     active_page_index: usize,
-    pages: Vec<RefCell<Page>>>,
+    pages: Vec<Rc<RefCell<Page>>>,
 }
 
 impl Browser {
