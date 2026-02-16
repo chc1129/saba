@@ -35,6 +35,29 @@ pub struct CssTokenizer {
     input: Vec<char>,
 }
 
+impl CssTokenizer {
+    /// https://www.w3.org/TR/css-syntax-3/#consume-ident-like-token
+    /// https://www.w3.org/TR/css-syntax-3/#consume-name
+    fn consume_string_token(&mut self) -> String {
+        let mut s = String::new();
+        s.push(self.input[self.pos]);
+
+        loop {
+            self.pos += 1;
+            let c = self.input[self.pos];
+            match c {
+                'a'..='z' | 'A'..= 'Z' | '0'..='9' | '-' | '_' => {
+                    s.push(c);
+                }
+                _ => break,
+            }
+        }
+
+        s
+    }
+}
+
+
 impl Iterator for CssTokenizer {
     /// https://www.w3.org/TR/css-syntax-3/#consume-a-string-token
     fn consume_string_token(&mut self) -> String {
@@ -91,6 +114,28 @@ impl Iterator for CssTokenizer {
         num
     }
 
+    /// https://www.w3.org/TR/css-syntax-3/#consume-ident-like-token
+    /// https://www.w3.org/TR/css-syntax-3/#consume-name
+    fn consume_ident_token(&mut self) -> String {
+        let mut s = String::new();
+        s.push(self.input[self.pos]);
+
+        loop {
+            self.pos += 1;
+            let c = self.input[self.pos];
+            match c {
+                'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => {
+                    s.push(c);
+                }
+                _ => break,
+            }
+        }
+
+        s
+    }
+}
+
+
     type Item = CssToken;
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-token
@@ -121,6 +166,40 @@ impl Iterator for CssTokenizer {
                 }
                 '0'..='9' => {
                     let t = CssToken::Number(self.consume_numeric_token());
+                    self.pos -= 1;
+                    t
+                }
+                '#' => {
+                    // 本書では、常に #ID の形式のIDセレクタとして扱う。
+                    let value = self.consume_ident_token();
+                    self.pos -= 1;
+                    CssToken::HashToken(value)
+                }
+                '-' => {
+                    // 本書では、負の数は取り扱わないため、ハイフンは識別子の一つとして扱う。
+                    let t = CssToken::Ident(self.consume_ident_token());
+                    self.pos -= 1;
+                    t
+                }
+                '@' => {
+                    // 次の3文字が識別子として有効な文字の場合、<at-keyword-token>
+                    // トークンを作成して返す。
+                    // それ以外の場合、<delim-token>を返す。
+                    if self.input[self.pos + 1].is_ascii_alphabetic()
+                        && self.input[self.pos + 2].is_alphanumeric()
+                        && self.input[self.pos + 3].is_alphanumeric()
+                    {
+                        // skip '@'
+                        self.pos += 1;
+                        let t = CssToken::AtKeyword(self.consume_ident_token());
+                        self.pos -= 1;
+                        t
+                    } else {
+                        CssToken::Delim('@')
+                    }
+                }
+                'a'..='z' | 'A'..='Z' | '_' => {
+                    let t = CssToken::Ident(self.consume_ident_token());
                     self.pos -= 1;
                     t
                 }
