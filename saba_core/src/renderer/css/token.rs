@@ -57,7 +57,6 @@ impl CssTokenizer {
     }
 }
 
-
 impl Iterator for CssTokenizer {
     /// https://www.w3.org/TR/css-syntax-3/#consume-a-string-token
     fn consume_string_token(&mut self) -> String {
@@ -211,5 +210,18 @@ impl Iterator for CssTokenizer {
             self.pos += 1;
             return Some(token);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::string::ToString;
+
+    #[test]
+    fn test_empty() {
+        let style = "".to_string();
+        let mut t = CssTokenizer::new(style);
+        assert!(t.next().is_none());
     }
 }
