@@ -36,28 +36,7 @@ pub struct CssTokenizer {
 }
 
 impl CssTokenizer {
-    /// https://www.w3.org/TR/css-syntax-3/#consume-ident-like-token
-    /// https://www.w3.org/TR/css-syntax-3/#consume-name
-    fn consume_string_token(&mut self) -> String {
-        let mut s = String::new();
-        s.push(self.input[self.pos]);
 
-        loop {
-            self.pos += 1;
-            let c = self.input[self.pos];
-            match c {
-                'a'..='z' | 'A'..= 'Z' | '0'..='9' | '-' | '_' => {
-                    s.push(c);
-                }
-                _ => break,
-            }
-        }
-
-        s
-    }
-}
-
-impl Iterator for CssTokenizer {
     /// https://www.w3.org/TR/css-syntax-3/#consume-a-string-token
     fn consume_string_token(&mut self) -> String {
         let mut s = String::new();
@@ -78,8 +57,8 @@ impl Iterator for CssTokenizer {
         s
     }
 
-    /// https://www.w3.org/TR/css-syntax-3/#consume-ident-like-token
     /// https://www.w3.org/TR/css-syntax-3/#consume-number
+    /// https://www.w3.org/TR/css-syntax-3/#consume-a-numeric-token
     fn consume_numeric_token(&mut self) -> f64 {
         let mut num = 0f64;
         let mut floating = false;
@@ -134,7 +113,7 @@ impl Iterator for CssTokenizer {
     }
 }
 
-
+impl Iterator for CssTokenizer {
     type Item = CssToken;
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-token
@@ -242,5 +221,24 @@ mod tests {
             assert_eq!(Some(e.clone()), t.next());
         }
         assert!(t.next().is_none());
+    }
+
+    #[test]
+    fn test_id_selector() {
+        let style = "#id { color: red; }".to_string();
+        let mut t = CssTokenizer::new(style);
+        let expected = {
+            CssToken::HashToken("#id".to_string()),
+            CssToken::OpenCurly,
+            CssToken::Ident("color".to_string()),
+            CssToken::Colon,
+            CssToken::Ident("red".to_string()),
+            CssToken::SemiColon,
+            CssToken::CloseCurly,
+        };
+        for e in expected {
+            assert_eq!(Some(e.clone()), t.next());
+        }
+        assert_eq!(t.next().is_none());
     }
 }
