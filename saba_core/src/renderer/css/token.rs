@@ -36,6 +36,12 @@ pub struct CssTokenizer {
 }
 
 impl CssTokenizer {
+    pub fn new(css: String) -> Self {
+        Self {
+            pos: 0,
+            input: css.chars().collect(),
+        }
+    }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-a-string-token
     fn consume_string_token(&mut self) -> String {
@@ -85,7 +91,7 @@ impl CssTokenizer {
                     floating = true;
                     self.pos += 1;
                 }
-                _ => break;
+                _ => break,
             }
         }
 
@@ -123,7 +129,7 @@ impl Iterator for CssTokenizer {
                 return None;
             }
 
-            let c = self.input[sefl.pos];
+            let c = self.input[self.pos];
 
             let token = match c {
                 '(' => CssToken::OpenParenthesis,
@@ -227,7 +233,7 @@ mod tests {
     fn test_id_selector() {
         let style = "#id { color: red; }".to_string();
         let mut t = CssTokenizer::new(style);
-        let expected = {
+        let expected = [
             CssToken::HashToken("#id".to_string()),
             CssToken::OpenCurly,
             CssToken::Ident("color".to_string()),
@@ -235,11 +241,11 @@ mod tests {
             CssToken::Ident("red".to_string()),
             CssToken::SemiColon,
             CssToken::CloseCurly,
-        };
+        ];
         for e in expected {
             assert_eq!(Some(e.clone()), t.next());
         }
-        assert_eq!(t.next().is_none());
+        assert!(t.next().is_none());
     }
 
     #[test]
@@ -264,7 +270,7 @@ mod tests {
 
     #[test]
     fn test_multiple_rules() {
-        let sytle = "p { content: \"Hey\"; } h1 { font-size: 40; color: blue; }".to_string();
+        let style = "p { content: \"Hey\"; } h1 { font-size: 40; color: blue; }".to_string();
         let mut t = CssTokenizer::new(style);
         let expected = [
             CssToken::Ident("p".to_string()),
