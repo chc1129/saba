@@ -1,14 +1,14 @@
 use crate::alloc::string::ToString;
 use crate::browser::Browser;
 use crate::http::HttpResponse;
-use crate::Renderer::dom::node::Window;
+use crate::renderer::dom::node::Window;
 use crate::renderer::html::parser::HtmlParser;
 use crate::renderer::html::token::HtmlTokenizer;
 use crate::utils::convert_dom_to_string;
 use alloc::rc::Rc;
 use alloc::rc::Weak;
 use alloc::string::String;
-use core::ce::RefCell;
+use core::cell::RefCell;
 
 #[derive(Debug, Clone)]
 pub struct Page {
@@ -28,7 +28,7 @@ impl Page {
         self.browser = browser;
     }
     pub fn receive_response(&mut self, response: HttpResponse) -> String {
-        self.crate_frame(response.body());
+        self.create_frame(response.body());
 
         // デバッグ用にDOMツリーを文字列として返す
         if let Some(frame) = &self.frame {
@@ -37,7 +37,7 @@ impl Page {
             return debug;
         }
 
-        "".to_strng()
+        "".to_string()
     }
 
     fn create_frame(&mut self, html: String) {
