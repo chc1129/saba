@@ -10,6 +10,7 @@ use crate::renderer::layout::layout_object::LayoutObjectKind;
 use crate::renderer::layout::layout_object::LayoutPoint;
 use crate::renderer::layout::layout_object::LayoutSize;
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 use core::cell::RefCell;
 
 fn build_layout_tree(

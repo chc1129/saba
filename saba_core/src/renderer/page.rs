@@ -39,7 +39,7 @@ impl Page {
         self.browser = browser;
     }
 
-    pub fn receive_response(&mut self, response: HttpResponse) -> String {
+    pub fn receive_response(&mut self, response: HttpResponse) {
         self.create_frame(response.body());
 
         self.set_layout_view();
@@ -83,7 +83,7 @@ impl Page {
     }
 
     pub fn display_items(&self) -> Vec<DisplayItem> {
-        self.display_item.clone()
+        self.display_items.clone()
     }
 
     pub fn clear_display_items(&mut self) {
