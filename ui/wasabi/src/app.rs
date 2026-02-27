@@ -25,13 +25,6 @@ use saba_core::error::Error;
 
 
 
-
-
-
-
-
-
-
 #[derive(Debug)]
 pub struct WasabiUI {
     browser: Rc<RefCell<Browser>>,
@@ -74,185 +67,12 @@ impl WasabiUI {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     fn setup(&mut self) -> Result<(), Error> {
         if let Err(error) = self.setup_toolbar() {
             // OsResultとResultが持つError型は異なるので、変換する
             return Err(Error::InvalidUI(format!(
-                        "failed to initialize a toolbar with error: {:#?}",
-                        error
+                "failed to initialize a toolbar with error: {:#?}",
+                error
             )));
         }
         // 画面を更新する
@@ -301,7 +121,6 @@ impl WasabiUI {
 
         Ok(())
     }
-
 
 
 
