@@ -82,7 +82,7 @@ impl WasabiUI {
     ) -> Result<(), Error> {
         loop {
             self.handle_mouse_input(handle_url)?;
-            self.handle_key_input()?;
+            self.handle_key_input(handle_url)?;
         }
     }
 
@@ -132,7 +132,10 @@ impl WasabiUI {
        Ok(())
     }
 
-    fn handle_key_input(&mut self) -> Result<(), Error> {
+    fn handle_key_input(
+        &mut self,
+        handle_url: fn(String) -> Result<HttpResponse, Error>,
+    ) -> Result<(), Error> {
         match self.input_mode {
             InputMode::Normal => {
                 // InputModeがNormalのとき、キー入力を無視する
@@ -140,7 +143,13 @@ impl WasabiUI {
             }
             InputMode::Editing => {
                 if let Some(c) = Api::read_key() {
-                    if c == 0x7F as char || c == 0x08 as char {
+                    if c == 0x0A as char {
+                        // エンターキーが押されたので、ナビゲーションを開始する
+                        self.start_navigation(handle_url, self.input_url.clone())?;
+
+                        self.input_url = String::new();
+                        self.input_mode = InputMode::Normal;
+                    } else if c == 0x7F as char || c == 0x08 as char {
                         // デリートキーまたはバックスペースキーが押されたので、
                         // 最後の文字を削除する
                         self.input_url.pop();
@@ -156,6 +165,27 @@ impl WasabiUI {
         Ok(())
     }
 
+    fn start_navigation(
+        &mut self,
+        handle_url: fn(String) -> Result<HttpResponse, Error>,
+        destination: String,
+    ) -> Result<(), Error> {
+        self.clear_content_area()?;
+
+        match handle_url(destination) {
+            Ok(response) => {
+                let page = self.browser.borrow().current_page();
+                page.borrow_mut().receive_response(response);
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+
+        self.update_ui()?;
+
+        Ok(())
+    }
 
     fn setup(&mut self) -> Result<(), Error> {
         if let Err(error) = self.setup_toolbar() {
@@ -282,11 +312,27 @@ impl WasabiUI {
         Ok(())
     }
 
+    fn clear_content_area(&mut self) -> Result<(), Error> {
+        // コンテンツ偉いを白く塗りつぶす
+        if self
+            .window
+            .fill_rect(
+                WHITE,
+                0,
+                TOOLBAR_HEIGHT + 2,
+                CONTENT_AREA_WIDTH,
+                CONTENT_AREA_HEIGHT - 2,
+            )
+            .is_err()
+        {
+            return Err(Error::InvalidUI(
+                    "failed to clear a content area".to_string(),
+            ));
+        }
 
+        self.window.flush();
 
-
+        Ok(())
+    }
 }
-
-
-
 
