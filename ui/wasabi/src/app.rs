@@ -182,7 +182,7 @@ impl WasabiUI {
             }
         }
 
-        self.update_ui()?;
+        //self.update_ui()?;
 
         Ok(())
     }
