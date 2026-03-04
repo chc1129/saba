@@ -19,18 +19,17 @@ use saba_core::constants::WINDOW_INIT_X_POS;
 use saba_core::constants::WINDOW_INIT_Y_POS;
 use saba_core::constants::WINDOW_WIDTH;
 use saba_core::constants::*;
-
+use saba_core::display_item::DisplayItem;
 use saba_core::error::Error;
 use saba_core::http::HttpResponse;
-
-
+use saba_core::renderer::layout::computed_style::FontSize;
+use saba_core::renderer::layout::computed_style::TextDecoration;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum InputMode {
     Normal,
     Editing,
 }
-
 
 #[derive(Debug)]
 pub struct WasabiUI {
@@ -40,8 +39,6 @@ pub struct WasabiUI {
     window: Window,
     cursor: Cursor,
 }
-
-
 
 impl WasabiUI {
     pub fn new(browser: Rc<RefCell<Browser>>) -> Self {
@@ -61,9 +58,6 @@ impl WasabiUI {
             cursor: Cursor::new(),
         }
     }
-
-
-
 
     pub fn start(
         &mut self,
@@ -85,7 +79,6 @@ impl WasabiUI {
             self.handle_key_input(handle_url)?;
         }
     }
-
 
     fn handle_mouse_input(
         &mut self,
@@ -127,9 +120,23 @@ impl WasabiUI {
                 }
 
                 self.input_mode = InputMode::Normal;
-           }
-       }
-       Ok(())
+
+                let position_in_content_area = (
+                    relative_pos.0,
+                    relative_pos.1 - TITLE_BAR_HEIGHT - TOOLBAR_HEIGHT,
+                );
+                let page = self.browser.borrow().current_page();
+                let next_destination = page.borrow_mut().clicked(position_in_content_area);
+
+                if let Some(url) = next_destination {
+                    self.input_url = url.clone();
+                    self.update_address_bar()?;
+                    self.start_navigation(handle_url, url)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn handle_key_input(
@@ -150,8 +157,7 @@ impl WasabiUI {
                         self.input_url = String::new();
                         self.input_mode = InputMode::Normal;
                     } else if c == 0x7F as char || c == 0x08 as char {
-                        // デリートキーまたはバックスペースキーが押されたので、
-                        // 最後の文字を削除する
+                        // デリートキーまたはバックスペースキーが押されたので、 最後の文字を削除する
                         self.input_url.pop();
                         self.update_address_bar()?;
                     } else {
@@ -182,7 +188,64 @@ impl WasabiUI {
             }
         }
 
-        //self.update_ui()?;
+        self.update_ui()?;
+
+        Ok(())
+    }
+
+    fn update_ui(&mut self) -> Result<(), Error> {
+        let display_items = self
+            .browser
+            .borrow()
+            .current_page()
+            .borrow()
+            .display_items();
+
+        for item in display_items {
+            match item {
+                DisplayItem::Text {
+                    text,
+                    style,
+                    layout_point,
+                } => {
+                    if self
+                        .window
+                        .draw_string(
+                            style.color().code_u32(),
+                            layout_point.x() + WINDOW_PADDING,
+                            layout_point.y() + WINDOW_PADDING + TOOLBAR_HEIGHT,
+                            &text,
+                            convert_font_size(style.font_size()),
+                            style.text_decoration() == TextDecoration::Underline,
+                        )
+                        .is_err()
+                    {
+                        return Err(Error::InvalidUI("failed to draw a string".to_string()));
+                    }
+                }
+                DisplayItem::Rect {
+                    style,
+                    layout_point,
+                    layout_size,
+                } => {
+                    if self
+                        .window
+                        .fill_rect(
+                            style.background_color().code_u32(),
+                            layout_point.x() + WINDOW_PADDING,
+                            layout_point.y() + WINDOW_PADDING + TOOLBAR_HEIGHT,
+                            layout_size.width(),
+                            layout_size.height(),
+                        )
+                        .is_err()
+                    {
+                        return Err(Error::InvalidUI("failed to draw a string".to_string()));
+                    }
+                }
+            }
+        }
+
+        self.window.flush();
 
         Ok(())
     }
@@ -336,3 +399,10 @@ impl WasabiUI {
     }
 }
 
+fn convert_font_size(size: FontSize) -> StringSize {
+    match size {
+        FontSize::Medium => StringSize::Medium,
+        FontSize::XLarge => StringSize::Large,
+        FontSize::XXLarge => StringSize::XLarge,
+    }
+}
