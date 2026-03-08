@@ -1,21 +1,21 @@
-
+use crate::renderer::dom::api::get_element_by_id;
 use crate::renderer::dom::node::Node as DomNode;
-
+use crate::renderer::dom::node::NodeKind as DomNodeKind;
 use crate::renderer::js::ast::Node;
 use crate::renderer::js::ast::Program;
-
+use alloc::format;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::string::ToString;
-
+use alloc::vec::Vec;
 use core::borrow::Borrow;
 use core::cell::RefCell;
-
-
+use core::fmt::Display;
+use core::fmt::Formatter;
 use core::ops::Add;
 use core::ops::Sub;
 
-
+type VariableMap = Vec<(String, Option<RuntimeValue>)>;
 
 /// https://262.ecma-international.org/#sec-ecmascript-language-types
 #[derive(Debug, Clone, PartialEq)]
@@ -55,12 +55,48 @@ impl Sub<RuntimeValue> for RuntimeValue {
     }
 }
 
+impl Display for RuntimeValue {
+    fn fmt(&self, f: &mut Formatter) -> core::fmt::Result {
+        let s = match self {
+            RuntimeValue::Number(value) => format!("{}", value),
+            RuntimeValue::StringLiteral(value) => value.to_string(),
+            RuntimeValue::HtmlElement {
+                object,
+                property: _,
+            } => {
+                format!("HtmlElement: {:#?}", object)
+            }
+        };
+        write!(f, "{}", s)
+    }
+}
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Function {
+    id: String,
+    params: Vec<Option<Rc<Node>>>,
+    body: Option<Rc<Node>>,
+}
+
+impl Function {
+    fn new(id: String, params: Vec<Option<Rc<Node>>>, body: Option<Rc<Node>>) -> Self {
+        Self { id, params, body }
+    }
+}
 
 /// https://262.ecma-international.org/#sec-environment-records
 #[derive(Debug, Clone)]
@@ -128,6 +164,7 @@ impl JsRuntime {
     fn eval(
         &mut self,
         node: &Option<Rc<Node>>,
+        env: Rc<RefCell<Environment>>,
     ) -> Option<RuntimeValue> {
         let node = match node {
             Some(n) => n,
@@ -252,7 +289,57 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_assign_variable() {
+        let dom = Rc::new(RefCell::new(DomNode::new(DomNodeKind::Document)));
+        let input = "var foo=42;".to_string();
+        let lexer = JsLexer::new(input);
+        let mut parser = JsParser::new(lexer);
+        let ast = parser.parse_ast();
+        let mut runtime = JsRuntime::new(dom);
+        let expected = [None];
+        let mut i = 0;
 
+        for node in ast.body() {
+            let result = runtime.eval(&Some(node.clone()), runtime.env.clone());
+            assert_eq!(expected[i], result);
+            i += 1;
+        }
+    }
 
+    #[test]
+    fn test_add_variable_and_num() {
+        let dom = Rc::new(RefCell::new(DomNode::new(DomNodeKind::Document)));
+        let input = "var foo=42; foo+1".to_string();
+        let lexer = JsLexer::new(input);
+        let mut parser = JsParser::new(lexer);
+        let ast = parser.parse_ast();
+        let mut runtime = JsRuntime::new(dom);
+        let expected = [None, Some(RuntimeValue::Number(43))];
+        let mut i = 0;
 
+        for node in ast.body() {
+            let result = runtime.eval(&Some(node.clone()), runtime.env.clone());
+            assert_eq!(expected[i], result);
+            i += 1;
+        }
+    }
+
+    #[test]
+    fn test_reassign_variable() {
+        let dom = Rc::new(RefCell::new(DomNode::new(DomNodeKind::Document)));
+        let input = "var foo=42; foo=1; foo".to_string();
+        let lexer = JsLexer::new(input);
+        let mut parser = JsParser::new(lexer);
+        let ast = parser.parse_ast();
+        let mut runtime = JsRuntime::new(dom);
+        let expected = [None, None, Some(RuntimeValue::Number(1))];
+        let mut i = 0;
+
+        for node in ast.body() {
+            let result = runtime.eval(&Some(node.clone()), runtime.env.clone());
+            assert_eq!(expected[i], result);
+            i += 1;
+        }
+    }
 }
