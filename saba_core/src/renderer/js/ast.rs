@@ -356,6 +356,37 @@ impl JsParser {
         node
     }
 
+    fn function_body(&mut self) -> Option<Rc<Node>> {
+        // '{'を消費する
+        match self.t.next() {
+            Some(t) => match t {
+                Token::Punctuator(c) => assert!(c == '{'),
+                _ => unimplemented!("function should have open curly blacket but got {:?}", t),
+            },
+            None => unimplemented!("function should have open curly blacket but got None"),
+        }
+
+        let mut body = Vec::new();
+        loop {
+            // '}'に到達するまで、関数内のコードとして解釈する
+            match self.t.peek() {
+                Some(t) => match t {
+                    Token::Punctuator(c) => {
+                        if c == &'}' {
+                            // '}'を消費し、BlockStatementノードを返す
+                            assert!(self.t.next().is_some());
+                            return Node::new_block_statement(body);
+                        }
+                    }
+                    _ => {}
+                },
+                None => {}
+            }
+
+            body.push(self.source_element());
+        }
+    }
+
     fn parameter_list(&mut self) -> Vec<Option<Rc<Node>>> {
         let mut params = Vec::new();
 
