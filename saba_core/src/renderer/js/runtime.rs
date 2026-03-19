@@ -22,13 +22,13 @@ type VariableMap = Vec<(String, Option<RuntimeValue>)>;
 pub enum RuntimeValue {
     /// https://262.ecma-international.org/#sec-numeric-types
     Number(u64),
+    /// https://262.ecma-international.org/#sec-ecmascript-language-types-string-type
+    StringLiteral(String),
+    HtmlElement {
+        object: Rc<RefCell<DomNode>>,
+        property: Option<String>,
+    },
 }
-
-
-
-
-
-
 
 impl Add<RuntimeValue> for RuntimeValue {
     type Output = RuntimeValue;
@@ -70,20 +70,6 @@ impl Display for RuntimeValue {
         write!(f, "{}", s)
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Function {
@@ -142,9 +128,6 @@ impl Environment {
     }
 }
 
-
-
-
 #[derive(Debug, Clone)]
 pub struct JsRuntime {
     dom_root: Rc<RefCell<DomNode>>,
@@ -153,13 +136,43 @@ pub struct JsRuntime {
 }
 
 impl JsRuntime {
-    pub fn new() -> Self {
+    pub fn new(dom_root: Rc<RefCell<DomNode>>) -> Self {
         Self {
+            dom_root,
+            functions: Vec::new(),
             env: Rc::new(RefCell::new(Environment::new(None))),
         }
     }
 
+    /// (bool, Option<RuntimeValue>) のタプルを返す
+    ///   bool: ブラウザAPIが呼ばれたかどうか。trueなら何かしらのAPIが呼ばれたことを示す
+    ///   Option<RuntimeValue>: ブラウザAPIの呼び出しによって得られた結果
+    fn call_browser_api(
+        &mut self,
+        func: &RuntimeValue,
+        arguments: &[Option<Rc<Node>>],
+        env: Rc<RefCell<Environment>>,
+    ) -> (bool, Option<RuntimeValue>) {
+        if func == &RuntimeValue::StringLiteral("document.getElementById".to_string()) {
+            let arg = match self.eval(&arguments[0], env.clone()) {
+                Some(a) => a,
+                None => return (true, None),
+            };
+            let target = match get_element_by_id(Some(self.dom_root.clone()), &arg.to_string()) {
+                Some(n) => n,
+                None => return (true, None),
+            };
+            return (
+                true,
+                Some(RuntimeValue::HtmlElement {
+                    object: target,
+                    property: None,
+                }),
+            );
+        }
 
+        (false, None)
+    }
 
     fn eval(
         &mut self,
@@ -200,25 +213,163 @@ impl JsRuntime {
                 left,
                 right,
             } => {
-                // 後ほど実装
-                 None
+                if operator != &'=' {
+                    return None;
+                }
+                // 変数の再割り当て
+                if let Some(node) = left {
+                    if let Node::Identifier(id) = node.borrow() {
+                        let new_value = self.eval(right, env.clone());
+                        env.borrow_mut().update_variable(id.to_string(), new_value);
+                        return None;
+                    }
+                }
+
+                // もし左辺の値がDOMツリーのノードを表すHtmlElementならば、DOMツリーを更新する
+                if let Some(RuntimeValue::HtmlElement { object, property }) =
+                    self.eval(left, env.clone())
+                {
+                    let right_value = match self.eval(right, env.clone()) {
+                        Some(value) => value,
+                        None => return None,
+                    };
+
+                    if let Some(p) = property {
+                        // target.textContent = "foobar"; のようにノードのテキストを変更する
+                        if p == "textContent" {
+                            object
+                                .borrow_mut()
+                                .set_first_child(Some(Rc::new(RefCell::new(DomNode::new(
+                                    DomNodeKind::Text(right_value.to_string()),
+                                )))));
+                        }
+                    }
+                }
+                None
+
+            }
+            Node::MemberExpression { object, property } => {
+                let object_value = match self.eval(object, env.clone()) {
+                    Some(value) => value,
+                    None => return None,
+                };
+                let property_value = match self.eval(property, env.clone()) {
+                    Some(value) => value,
+                    // プロパティが存在しないため、`object_value`をここで返す
+                    None => return Some(object_value),
+                };
+
+                // もしオブジェクトがDOMノードの場合、HtmlElementの`property`を更新する
+                if let RuntimeValue::HtmlElement { object, property } = object_value {
+                     assert!(property.is_none());
+                    // HtmlElementの`property`に`property_value`の文字列をセットする
+                    return Some(RuntimeValue::HtmlElement {
+                        object,
+                        property: Some(property_value.to_string()),
+                    });
+                }
+
+                // document.getElementByIdは、"document.getElementById"という一つの文字列として扱う。
+                // このメソッドへの呼び出しは、"document.getElementById"という名前の関数への呼び出しになる
+                return Some(
+                    object_value + RuntimeValue::StringLiteral(".".to_string()) + property_value,
+                );
             }
             Node::NumericLiteral(value) => Some(RuntimeValue::Number(*value)),
-            // ノードの種類を追加したので、デフォルトアームを追加
-            // 後ほど削除する
-            _ => todo!(),
+            Node::VariableDeclaration { declarations } => {
+                for declaration in declarations {
+                    self.eval(&declaration, env.clone());
+                }
+                None
+            }
+            Node::VariableDeclarator { id, init } => {
+                if let Some(node) = id {
+                    if let Node::Identifier(id) = node.borrow() {
+                        let init = self.eval(&init, env.clone());
+                        env.borrow_mut().add_variable(id.to_string(), init);
+                    }
+                }
+                None
+            }
+            Node::Identifier(name) => {
+                match env.borrow_mut().get_variable(name.to_string()) {
+                    Some(v) => Some(v),
+                    // 変数名が初めて使用される場合は、まだ値は保存されていないので、文字列として扱う
+                    // たとえば、var a = 42; のようなコードの場合、aはStringLiteralとして扱われる
+                    None => Some(RuntimeValue::StringLiteral(name.to_string())),
+                }
+            }
+            Node::StringLiteral(value) => Some(RuntimeValue::StringLiteral(value.to_string())),
+            Node::BlockStatement { body } => {
+                let mut result: Option<RuntimeValue> = None;
+                for stmt in body {
+                    result = self.eval(&stmt, env.clone());
+                }
+                result
+            }
+            Node::ReturnStatement { argument } => {
+                return self.eval(&stmt, env.clone());
+            }
+            Node::FunctionDeclaration { id, params, body } => {
+                if let Some(RuntimeValue::StringLiteral(id)) = self.eval(&id, env.clone()) {
+                    let cloned_body = match body {
+                        Some(b) => Some(b.clone()),
+                        None => None,
+                    };
+                    self.functions
+                        .push(Function::nwe(id, params.to_vec(), cloned_body));
+                };
+                None
+            }
+            Node::CallExpression { callee, arguments } => {
+                // 新しいスコープを作成する
+                let new_env = Rc::new(RefCell::new(Environment::new(Some(env))));
+
+                let callee_value = match self.eval(callee, new_env.clone {
+                    Some(value) => value,
+                    None => return None,
+                };
+
+                // ブラウザAPIの呼び出しを試みる
+                let api_result = self.call_browser_api(&callee_value, arguments, new_env.clone());
+                if api_result.0 {
+                    // もしブラウザAPIを呼び出していたら、ユーザーが定義した関数は実行しない
+                    return api_result.1;
+                }
+
+                // 既に定義されている関数を探す
+                let function = {
+                    let mut f: Option<Function> = None;
+
+                    for func in &self.functions {
+                        if callee_value == RuntimeValue::StringLiteral(func.id.to_string()) {
+                            f = Some(func.clone());
+                        }
+                    }
+
+                    match f {
+                        Some(f) => f,
+                        None => panic!("function {:?} doesn't exist", callee),
+                    }
+                };
+
+                // 関数呼び出し時に渡される引数を新しく作成したスコープのローカル変数として割り当てる
+                assert!(arguments.len() == function.params.len());
+                for (i, item) in arguments.iter().enumerate() {
+                    if let Some(RuntimeValue::StringLiteral(name)) =
+                        self.eval(&function.params[i], new_env.clone())
+                    {
+                        new_env
+                            .borrow_mut()
+                            .add_variable(name, self.eval(item, new_env.clone()));
+                    }
+                }
+
+                // 関数を新しいスコープと共に呼ぶ
+                self.eval(&function.body.clone(), new_env.clone())
+            }
         }
     }
-
-
-
-
-
-
-
-
-
-
 
     pub fn execute(&mut self, program: &Program) {
         for node in program.body() {
@@ -334,6 +485,60 @@ mod tests {
         let ast = parser.parse_ast();
         let mut runtime = JsRuntime::new(dom);
         let expected = [None, None, Some(RuntimeValue::Number(1))];
+        let mut i = 0;
+
+        for node in ast.body() {
+            let result = runtime.eval(&Some(node.clone()), runtime.env.clone());
+            assert_eq!(expected[i], result);
+            i += 1;
+        }
+    }
+
+    #[test]
+    fn test_add_function_and_num() {
+        let dom = Rc::new(RefCell::new(DomNode::new(DomNodeKind::Document)));
+        let input = "function foo() { return 42; } foo()+1".to_string();
+        let lexer = JsLexer::new(input);
+        let mut parser = JsParser::new(lexer);
+        let ast = parser.parse_ast();
+        let mut runtime = JsRuntime::new(dom);
+        let expected = [None, Some(RuntimeValue::Number(43))];
+        let mut i = 0;
+
+        for node in ast.body() {
+            let result = runtime.eval(&Some(node.clone()), runtime.env.clone());
+            assert_eq!(expected[i], result);
+            i += 1;
+        }
+    }
+
+    #[test]
+    fn test_define_function_with_args() {
+        let dom = Rc::new(RefCell::new(DomNode::new(DomNodeKind::Document)));
+        let input = "function foo(a, b) { return a + b; } foo(1, 2) + 3;".to_string();
+        let lexer = JsLexer::new(input);
+        let mut parser = JsParser::new(lexer);
+        let ast = parser.parse_ast();
+        let mut runtime = JsRuntime::new(dom);
+        let expected = [None, Some(RuntimeValue::Number(6))];
+        let mut i = 0;
+
+        for node in ast.body() {
+            let result = runtime.eval(&Some(node.clone()), runtime.env.clone());
+            assert_eq!(expected[i], result);
+            i += 1;
+        }
+    }
+
+    #[test]
+    fn test_local_variable() {
+        let dom = Rc::new(RefCell::new(DomNode::new(DomNodeKind::Document)));
+        let input = "var a=42; function foo() { var a=1; return a; } foo()+a".to_string();
+        let lexer = JsLexer::new(input);
+        let mut parser = JsParser::new(lexer);
+        let ast = parser.parse_ast();
+        let mut runtime = JsRuntime::new(dom);
+        let expected = [None, None, Some(RuntimeValue::Number(43))];
         let mut i = 0;
 
         for node in ast.body() {
