@@ -178,14 +178,14 @@ mod tests {
     }
 
     #[test]
-    fn test_url_host_path_searchquery() {
-        let url = "http://example.com:8888/index.html?a=123&b= 456".to_string();
+    fn test_url_host_port_path_searchpart() {
+        let url = "http://example.com:8888/index.html?a=123&b=456".to_string();
         let expected = Ok(Url {
             url: url.clone(),
             host: "example.com".to_string(),
             port: "8888".to_string(),
             path: "index.html".to_string(),
-            searchpart: "a=123&b= 456".to_string(),
+            searchpart: "a=123&b=456".to_string(),
         });
         assert_eq!(expected, Url::new(url).parse());
     }
@@ -203,5 +203,4 @@ mod tests {
         let expected = Err("Only HTTP scheme is supported.".to_string());
         assert_eq!(expected, Url::new(url).parse());
     }
-
 }

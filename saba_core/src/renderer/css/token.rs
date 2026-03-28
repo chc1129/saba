@@ -290,7 +290,7 @@ mod tests {
             CssToken::Colon,
             CssToken::Ident("blue".to_string()),
             CssToken::SemiColon,
-            CssToken::CloseCurly
+            CssToken::CloseCurly,
         ];
         for e in expected {
             assert_eq!(Some(e.clone()), t.next());

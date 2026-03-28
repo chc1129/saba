@@ -32,7 +32,7 @@ else
   git clone --branch for_saba git@github.com:hikalium/wasabi.git
 fi
 
-# アプリケーショントップディレクトリに移動する
+# アプリケーションのトップディレクトリに移動する
 cd $HOME_PATH
 
 # Makefileをダウンロードする

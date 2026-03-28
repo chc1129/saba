@@ -47,7 +47,6 @@ fn split_text(line: String, char_width: i64) -> Vec<String> {
     }
     result
 }
-
 pub fn create_layout_object(
     node: &Option<Rc<RefCell<Node>>>,
     parent_obj: &Option<Rc<RefCell<LayoutObject>>>,
@@ -85,8 +84,6 @@ pub fn create_layout_object(
     }
     None
 }
-
-
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LayoutObjectKind {
@@ -306,7 +303,6 @@ impl LayoutObject {
 
         self.point = point;
     }
-
 
     pub fn is_node_selected(&self, selector: &Selector) -> bool {
         match &self.node_kind() {

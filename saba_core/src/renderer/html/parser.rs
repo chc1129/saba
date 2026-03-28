@@ -32,7 +32,7 @@ pub struct HtmlParser {
     mode: InsertionMode,
     /// https://html.spec.whatwg.org/multipage/parsing.html#original-insertion-mode
     original_insertion_mode: InsertionMode,
-    /// https::/html.spec.whatwg.org/multipage/parsing.html#the-stack-of-open-elements
+    /// https://html.spec.whatwg.org/multipage/parsing.html#the-stack-of-open-elements
     stack_of_open_elements: Vec<Rc<RefCell<Node>>>,
     t: HtmlTokenizer,
 }
@@ -288,7 +288,6 @@ impl HtmlParser {
                                 self.mode = InsertionMode::AfterHead;
                                 continue;
                             }
-
                             if let Ok(_element_kind) = ElementKind::from_str(tag) {
                                 self.pop_until(ElementKind::Head);
                                 self.mode = InsertionMode::AfterHead;
@@ -397,13 +396,13 @@ impl HtmlParser {
                                 }
                                 "h1" | "h2" => {
                                     let element_kind = ElementKind::from_str(tag)
-                                        .expect("failed to convert string rto ELementKind");
+                                        .expect("failed to convert string to ElementKind");
                                     token = self.t.next();
                                     self.pop_until(element_kind);
                                     continue;
                                 }
                                 "a" => {
-                                let element_kind = ElementKind::from_str(tag)
+                                    let element_kind = ElementKind::from_str(tag)
                                         .expect("failed to convert string to ElementKind");
                                     token = self.t.next();
                                     self.pop_until(element_kind);

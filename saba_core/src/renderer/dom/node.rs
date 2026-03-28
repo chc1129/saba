@@ -126,7 +126,7 @@ impl Node {
     }
 }
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone)]
 pub enum NodeKind {
     /// https://dom.spec.whatwg.org/#interface-document
     Document,
@@ -247,4 +247,3 @@ impl FromStr for ElementKind {
         }
     }
 }
-

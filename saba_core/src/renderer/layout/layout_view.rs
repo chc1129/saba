@@ -106,7 +106,7 @@ pub struct LayoutView {
 }
 
 impl LayoutView {
-    pub fn new(root: Rc<RefCell<Node>>, cssom: &StyleSheet,) -> Self {
+    pub fn new(root: Rc<RefCell<Node>>, cssom: &StyleSheet) -> Self {
         // レイアウトツリーは描画される要素だけを持つツリーなので、<body>タグを取得し、その子要素以下を
         // レイアウトツリーのノードに変換する。
         let body_root = get_target_element_node(Some(root), ElementKind::Body);
@@ -275,8 +275,6 @@ mod tests {
         let cssom = CssParser::new(css_tokenizer).parse_stylesheet();
         LayoutView::new(dom, &cssom)
     }
-
-
 
     #[test]
     fn test_empty() {

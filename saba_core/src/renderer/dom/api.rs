@@ -80,7 +80,7 @@ pub fn get_js_content(root: Rc<RefCell<Node>>) -> String {
         None => return "".to_string(),
     };
     let content = match &text_node.borrow().kind() {
-        NodeKind::Text(ref s) => s.clone(),
+        NodeKind::Text(s) => s.clone(),
         _ => "".to_string(),
     };
     content

@@ -246,7 +246,6 @@ impl JsRuntime {
                     }
                 }
                 None
-
             }
             Node::MemberExpression { object, property } => {
                 let object_value = match self.eval(object, env.clone()) {
@@ -261,7 +260,7 @@ impl JsRuntime {
 
                 // もしオブジェクトがDOMノードの場合、HtmlElementの`property`を更新する
                 if let RuntimeValue::HtmlElement { object, property } = object_value {
-                     assert!(property.is_none());
+                    assert!(property.is_none());
                     // HtmlElementの`property`に`property_value`の文字列をセットする
                     return Some(RuntimeValue::HtmlElement {
                         object,
@@ -308,7 +307,7 @@ impl JsRuntime {
                 result
             }
             Node::ReturnStatement { argument } => {
-                return self.eval(&stmt, env.clone());
+                return self.eval(&argument, env.clone());
             }
             Node::FunctionDeclaration { id, params, body } => {
                 if let Some(RuntimeValue::StringLiteral(id)) = self.eval(&id, env.clone()) {
@@ -317,7 +316,7 @@ impl JsRuntime {
                         None => None,
                     };
                     self.functions
-                        .push(Function::nwe(id, params.to_vec(), cloned_body));
+                        .push(Function::new(id, params.to_vec(), cloned_body));
                 };
                 None
             }
@@ -325,7 +324,7 @@ impl JsRuntime {
                 // 新しいスコープを作成する
                 let new_env = Rc::new(RefCell::new(Environment::new(Some(env))));
 
-                let callee_value = match self.eval(callee, new_env.clone {
+                let callee_value = match self.eval(callee, new_env.clone()) {
                     Some(value) => value,
                     None => return None,
                 };
@@ -377,8 +376,6 @@ impl JsRuntime {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

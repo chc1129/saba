@@ -83,7 +83,7 @@ impl WasabiUI {
     fn handle_mouse_input(
         &mut self,
         handle_url: fn(String) -> Result<HttpResponse, Error>,
-    )-> Result<(), Error> {
+    ) -> Result<(), Error> {
         if let Some(MouseEvent { button, position }) = Api::get_mouse_cursor_info() {
             self.window.flush_area(self.cursor.rect());
             self.cursor.set_position(position.x, position.y);
@@ -313,7 +313,7 @@ impl WasabiUI {
             .is_err()
         {
             return Err(Error::InvalidUI(
-                    "failed to clear an address bar".to_string(),
+                "failed to clear an address bar".to_string(),
             ));
         }
 
@@ -331,7 +331,7 @@ impl WasabiUI {
             .is_err()
         {
             return Err(Error::InvalidUI(
-                    "failed to update an address bar".to_string(),
+                "failed to update an address bar".to_string(),
             ));
         }
 
@@ -357,7 +357,7 @@ impl WasabiUI {
             .is_err()
         {
             return Err(Error::InvalidUI(
-                    "failed to clear an address bar".to_string(),
+                "failed to clear an address bar".to_string(),
             ));
         }
 
@@ -376,7 +376,7 @@ impl WasabiUI {
     }
 
     fn clear_content_area(&mut self) -> Result<(), Error> {
-        // コンテンツ偉いを白く塗りつぶす
+        // コンテンツエリアを白く塗りつぶす
         if self
             .window
             .fill_rect(
@@ -389,7 +389,7 @@ impl WasabiUI {
             .is_err()
         {
             return Err(Error::InvalidUI(
-                    "failed to clear a content area".to_string(),
+                "failed to clear a content area".to_string(),
             ));
         }
 

@@ -2,7 +2,7 @@ use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 
-static RESERVED_WORDS: [&str; 1] = ["var", "function", "return"];
+static RESERVED_WORDS: [&str; 3] = ["var", "function", "return"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
@@ -17,12 +17,6 @@ pub enum Token {
     /// https://262.ecma-international.org/#sec-literals-string-literals
     StringLiteral(String),
 }
-
-
-
-
-
-
 
 pub struct JsLexer {
     pos: usize,
@@ -112,7 +106,7 @@ impl JsLexer {
             let c = self.input[self.pos];
 
             match c {
-                '0'..'9' => {
+                '0'..='9' => {
                     num = num * 10 + (c.to_digit(10).unwrap() as u64);
                     self.pos += 1;
                 }
@@ -123,11 +117,6 @@ impl JsLexer {
         return num;
     }
 }
-
-
-
-
-
 
 impl Iterator for JsLexer {
     type Item = Token;
@@ -171,12 +160,6 @@ impl Iterator for JsLexer {
     }
 }
 
-
-
-
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,7 +179,7 @@ mod tests {
         let mut i = 0;
         while lexer.peek().is_some() {
             assert_eq!(Some(expected[i].clone()), lexer.next());
-            i + 1;
+            i += 1;
         }
         assert!(lexer.peek().is_none());
     }

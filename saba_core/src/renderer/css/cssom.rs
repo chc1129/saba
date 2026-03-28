@@ -16,11 +16,11 @@ impl CssParser {
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-component-value
-     fn consume_component_value(&mut self) -> ComponentValue {
+    fn consume_component_value(&mut self) -> ComponentValue {
         self.t
             .next()
             .expect("should have a token in consume_component_value")
-     }
+    }
 
     fn consume_ident(&mut self) -> String {
         let token = match self.t.next() {
@@ -298,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    fn test_one_fule() {
+    fn test_one_rule() {
         let style = "p { color: red; }".to_string();
         let t = CssTokenizer::new(style);
         let cssom = CssParser::new(t).parse_stylesheet();
